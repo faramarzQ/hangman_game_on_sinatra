@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <title>Hangman game</title>
+
+    <style>
+        #alphabet-section, #word-section, #reset-button, #hint-button, #hangman-section, #hanged-alert, #lives-badge {
+            margin-top: 2rem;
+        }
+
+        #hangman-table tr {
+            height: 4rem;
+        }
+    </style>
+</head>
+<body >
+<div class="container">
+    <section id="alphabet-section">
+        <div>
+            <h5>
+                Alphabets:
+            </h5>
+        </div>
+        <table id="alphabet-table" class="col-12 table table-bordered text-center">
+            <div class="d-block">
+                <tbody>
+                    <tr id="alphabet">
+                    </tr>
+                </tbody>
+            </div>
+        </table>
+    </section>
+
+    <section id="hint-section">
+
+    </section>
+
+    <section id="word-section">
+        <div>
+            <h5>
+                Word:
+            </h5>
+        </div>
+        <table id="word-table" class=" col-4 text-center table table-bordered">
+            <div class="d-block">
+                <tbody>
+                    <tr id="target-word">
+                    </tr>
+                </tbody>
+            </div>
+        </table>
+    </section>
+
+
+    <div>
+        <div>
+            <button id="reset-button" onclick="reset()" class="btn btn-danger">reset</button>
+            <button id="hint-button" onclick="hint()" class="btn btn-primary">hint</button>
+        </div>
+
+        <div class="h3">
+            <span id="lives-badge" class="badge badge-success"></span>
+        </div>
+    </div>
+
+    <h1 id="hanged-alert" style="display:none" class="text-danger">
+        hanged
+    </h1>
+
+    <h1 id="winning-alert" style="display:none" class="text-success">
+        You won
+    </h1>
+
+    <section id="hangman-section">
+        <table class="col-3 table table-bordered">
+            <tbody id="hangman-table">
+                <tr>
+                    <td id="td-1"></td>
+                    <td id="td-2"></td>
+                    <td id="td-3"></td>
+                    <td id="td-4"></td>
+                </tr>
+                <tr>
+                    <td id="td-5"></td>
+                    <td id="td-6"></td>
+                    <td id="td-7"></td>
+                    <td id="td-8"><i class="bi bi-circle"></i></td>
+                </tr>
+                <tr>
+                    <td id="td-9"></td>
+                    <td id="td-10"></td>
+                    <td id="td-11"></td>
+                    <td id="td-12"></td>
+                </tr>
+                <tr>
+                    <td id="td-13"></td>
+                    <td id="td-14"></td>
+                    <td id="td-15"></td>
+                    <td id="td-16"></td>
+                </tr>
+                <tr>
+                    <td id="td-17"></td>
+                    <td id="td-18"></td>
+                    <td id="td-19"></td>
+                    <td id="td-20"></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+<script>
+    let alphabet = <%= @alphabet %>
+    let targetWordCount = <%= @targetWordCount %>
+    let userLives = <%= @userLives %>
+    $(document).ready(function() {
+        alphabet.forEach((letter, index) => {
+            element = `<td class="alphabet-letter" onclick="checkLetter(${index})" id="alphabet-${index}">
+                    <span >
+                        ${letter}
+                    </span>
+                </td>`
+            $('#alphabet').append(element)
+        });
+
+        for (let index = 0; index < targetWordCount; index++) {
+            element = `<td class="word-letter" id="word-${index}">
+                    <span >
+
+                    </span>
+                </td>`
+            $('#target-word').append(element)
+        }
+
+        $('#lives-badge').html('lives: '+userLives)
+    });
+
+   /**
+    * check if the letter guessed correctly
+    *
+    */
+   function checkLetter(letterID) {
+        $.post({
+            type: "POST",
+            url: '/check_letter',
+            data: {
+                letter: alphabet[letterID]
+            },
+        }).done(function(data, status){
+
+            if(JSON.parse(data).guess == true) {
+                $('#alphabet-'+letterID).css('background-color', 'green')
+                $('#word-'+JSON.parse(data).position).find('span').html(alphabet[letterID])
+                $('#lives-badge').html('lives: '+JSON.parse(data).lives)
+
+                if(JSON.parse(data).won == true) {
+                    $('#hangman-section').hide()
+                    $('#lives-badge').hide()
+                    $('#winning-alert').show()
+                    return;
+                }
+            } else {
+                if( JSON.parse(data).won == true) {
+                    return
+                }
+                $('#lives-badge').html('lives: '+JSON.parse(data).lives)
+                $('#alphabet-'+letterID).css('background-color', 'red')
+                buildHanger(JSON.parse(data).lives)
+            }
+
+            if(JSON.parse(data).lives == 0 && JSON.parse(data).won != true) {
+                $('#hanged-alert').show()
+            }
+
+        }).catch(function(data, status){
+            console.log('error');
+        })
+   }
+
+    /**
+    * resets the game
+    *
+    */
+   function reset() {
+       $('.alphabet-letter').each((index, el) => {
+            $(el).css('background-color', 'white')
+        });
+
+        $('.word-letter').each((index, el) => {
+            $(el).find('span').html('<i class="bi bi-dash"></i>')
+        });
+
+        $.post({
+            type: "Get",
+            url: '/reset_game',
+        })
+
+        $('#td-18').css('border-bottom', '1px solid #dee2e6')
+        $('#td-17').css('border-bottom', '1px solid #dee2e6')
+        $('#td-1').css('border-right', '1px solid #dee2e6')
+        $('#td-5').css('border-right', '1px solid #dee2e6')
+        $('#td-9').css('border-right', '1px solid #dee2e6')
+        $('#td-13').css('border-right', '1px solid #dee2e6')
+        $('#td-17').css('border-right', '1px solid #dee2e6')
+        $('#td-1').css('border-top', '1px solid #dee2e6')
+        $('#td-2').css('border-top', '1px solid #dee2e6')
+        $('#td-3').css('border-top', '1px solid #dee2e6')
+        $('#td-4').css('border-top', '1px solid #dee2e6')
+        $('#td-4').css('border-right', '1px solid #dee2e6')
+
+        $('#lives-badge').html('lives: '+userLives)
+
+        $('#winning-alert').hide()
+        $('#hanged-alert').hide()
+        $('#hint-section').html('')
+        $('#hangman-section').show()
+        $('#lives-badge').show()
+    }
+
+    /**
+    * gets the hint from the server
+    *
+    */
+    function hint() {
+        $.get({
+            type: "get",
+            url: '/hint',
+        }).done(function(data, status){
+            $('#hint-section').html('<div class="alert alert-primary">'+JSON.parse(data).hint+'</div>')
+        }).catch(function(data, status){
+            console.log('error');
+        })
+    }
+
+    /**
+    * builds the hanger building
+    *
+    */
+   function buildHanger(userLives) {
+       switch (userLives) {
+           case 3:
+                $('#td-18').css('border-bottom', '4px solid red')
+                $('#td-17').css('border-bottom', '4px solid red')
+               break;
+
+            case 2:
+                $('#td-1').css('border-right', '4px solid red')
+                $('#td-5').css('border-right', '4px solid red')
+                $('#td-9').css('border-right', '4px solid red')
+                $('#td-13').css('border-right', '4px solid red')
+                $('#td-17').css('border-right', '4px solid red')
+               break;
+
+            case 1:
+                $('#td-1').css('border-top', '4px solid red')
+                $('#td-2').css('border-top', '4px solid red')
+                $('#td-3').css('border-top', '4px solid red')
+                $('#td-4').css('border-top', '4px solid red')
+                break;
+
+            case 0:
+                $('#td-4').css('border-right', '4px solid red')
+               break;
+       }
+   }
+</script>
+
+</body>
+</html>
